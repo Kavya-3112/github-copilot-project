@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "project": "Contact Management System",
+    "repository": "github-copilot-project",
+    "repoUrl": "https://github.com/Kavya-3112/github-copilot-project",
+    "basisDoc": "requirements.md (Rev 2, approved 2026-10-21)",
+    "note": "This task list maps to approved requirements (no auth). Auth is listed as expicit out-of-scope work to be considered only if new requirements are approved."
+  },
+  "tasks": [
+    {
+      "id": "PHAÓ00",
+      "title": "Project alignment: confirm scope for auth vs browser-only",
+      "priority": "P",
+      "reqs": ["out-of-scope"],
+      "depends": [],
+      "components": ["README.md", "requirements.md"],
+      "approach": "Summarize the approved scope (FR/NFR/CS) and document that authentication requires new approval.",
+      "verification": "Review documentation for consistency; hand-off for approval.",
+      "done": "Stakeholder confirms whether auth is in-scope or out-of-scope for this iteration."
+    },
+    {
+      "id": "PHA-010",
+      "title": "Create detailed task breakdown for FR-01..FR-11, NFR-01..NFR-03, CS-01",
+      "priority": "P1",
+      "reqs": ["FR-01", "FR-02", "FR-03", "FR-04", "FR-05", "FR-06", "FR-07", "FR-08", "FR-09", "FR-10", "FR-11", "NFR-01", "NFR-02", "NFR-03", "CS-01"],
+      "depends": ["PHAÓ00"],
+      "components": ["src/", "tests/"],
+      "approach": "Map tasks to existing repo modules: storage, contact-rules, state machine, UI, tests, config.",
+      "verification": "Document review against requirements.md.",
+      "done": "Unique task IDs, order, dependencies, and completion criteria exist."
+    }
+  ]
+}
