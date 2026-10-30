@@ -1,9 +1,9 @@
 # Contact Management System Architecture Proposal
 
-**Revision:** 4  
-**Status:** Approved by the user on 2026-10-21.  
-**Basis:** `requirements.md` revision 2, explicitly approved by the user on 2026-10-21 (FR-01 through FR-11, NFR-01 through NFR-03, and CS-01).  
-**Approval history:** Architecture revision 3 was approved on 2026-10-21 under requirements revision 1. Architecture revision 4 was approved by the user on 2026-10-21 under requirements revision 2.
+**Revision:** 5  
+**Status:** Approved by the user on 2026-10-21 (revision 4); revision 5 approved by the user on 2026-10-30.  
+**Basis:** `requirements.md` revision 3, explicitly approved by the user (FR-01 through FR-12, NFR-01 through NFR-03, and CS-01).  
+**Approval history:** Architecture revision 3 was approved on 2026-10-21 under requirements revision 1. Architecture revision 4 was approved by the user on 2026-10-21 under requirements revision 2. Architecture revision 5 was approved by the user on 2026-10-30 under requirements revision 3, adding the local login gate (FR-12); it makes no other change to revision 4.
 
 This document proposes an architecture for the browser-local Contact Management System. Technology and design choices below are proposals, not approved requirements. Existing repository and deployment records are not evidence that the implementation conforms to this proposal or to the revised browser scope.
 
@@ -13,7 +13,7 @@ The application is a client-side contact manager. Contact data is stored in the 
 
 Principles:
 
-- Keep contact data and all contact operations in the browser; do not add accounts, a backend, analytics, or synchronization without new requirements.
+- Keep contact data and all contact operations in the browser; do not add a backend, analytics, or synchronization without new requirements. A single local login gate (FR-12) is approved as of revision 5; it adds no server, no multi-user account system, and no synchronization.
 - Separate in-memory UI state from persistence so write failures do not erase visible user changes (FR-10).
 - Identify contacts by an internal ID, never by phone number (FR-07).
 - Validate stored data before it enters application state and preserve unreadable source data until the user authorizes replacement (FR-09).
@@ -30,8 +30,17 @@ Principles:
 | Contact rules | Validate entered contacts and provide search comparison values. Keep display values distinct from comparison values. | FR-01, FR-02, FR-06, FR-07 |
 | Storage adapter | Read/write the versioned contact document through `localStorage`; handle unavailable storage, parse/validation failures, and write exceptions without silently replacing source data. | FR-08 through FR-10 |
 | Accessibility layer (view behavior) | Use semantic controls, visible focus, logical keyboard order, and accessible announcements for validation, search, storage, and save status. | NFR-01 through NFR-03 |
+| Login gate | Set up the local username/passcode on first use, verify login against the salted hash stored in `localStorage`, hold a session-scoped authenticated flag, gate all contact rendering/operations behind it, and provide logout. Stores and compares only a salted hash, never a plaintext passcode. | FR-12, NFR-01, NFR-02 |
 
 These are logical responsibilities, not a commitment to a particular component framework or visual design.
+
+### 2.1 Login gate design (revision 5)
+
+- **Credential storage:** a separate `localStorage` key (distinct from the contact-document key) holds `{ username, salt, passwordHash, hashAlgorithm }`. The passcode hash uses the Web Crypto `SubtleCrypto` digest API (e.g., SHA-256) over the passcode concatenated with a random per-setup salt; no plaintext passcode is ever written to storage, logs, or the DOM.
+- **Session scope:** successful login sets an in-memory/`sessionStorage` authenticated flag for the current tab session only; it is not itself written to `localStorage`, so reopening the browser later requires logging in again (consistent with FR-08/FR-09 only applying to contact data, not to session authentication state).
+- **Gating:** the contact view, form, delete confirmation, and search are not rendered/operable until the login gate reports authenticated; logout clears the session flag and returns to the login view without deleting the stored credential or any contact data.
+- **Failure handling:** an incorrect username or passcode produces one generic, accessible error message; the system does not reveal which field was wrong (avoids a username-enumeration signal, though this is a convenience gate, not a security boundary — see Section 7).
+- **No account recovery flow:** because there is no server to verify identity, a forgotten passcode has no reset-by-identity flow; the documented recovery is clearing this browser's local storage, which also removes stored contacts.
 
 ## 3. Proposed Technology Choices
 
@@ -161,15 +170,18 @@ Deletion follows the same persistence boundary after confirmation. Cancellation 
 
 ## 7. Security and Privacy
 
-The system stores personally identifying contact information in browser local storage. It is available to scripts running in the same origin and is not protected by server-side access control; users sharing a browser profile may also have access. Local storage is not an encrypted vault or a backup. The user selected clear disclosure of these facts on 2026-10-21. Do not claim encryption, authentication, secure deletion, backup, or regulatory compliance.
+The system stores personally identifying contact information in browser local storage. It is available to scripts running in the same origin and is not protected by server-side access control; users sharing a browser profile may also have access. Local storage is not an encrypted vault or a backup. The user selected clear disclosure of these facts on 2026-10-21. Do not claim encryption, secure deletion, backup, or regulatory compliance.
+
+Revision 5 adds the FR-12 login gate at the user's explicit request on 2026-10-30. It stores only a salted hash of the local passcode and gates the UI behind a session-scoped authenticated flag (Section 2.1), but it is explicitly not a security boundary: anyone with access to the same browser profile's storage or developer tools can still read the stored hash and the contact data it gates, and offline guessing against the stored hash is not prevented. Do not claim this gate provides server-verified authentication, access control, or any compliance benefit.
 
 Proposed safeguards:
 
-- Keep contact data out of URLs, logs, telemetry, and error-reporting payloads.
+- Keep contact data out of URLs, logs, telemetry, and error-reporting payloads. The passcode itself must never appear in logs, telemetry, error payloads, or the DOM outside its input field.
 - Render contact-provided names and phone values as text, never as interpreted HTML.
 - Avoid third-party scripts and unnecessary runtime dependencies; protect static hosting with HTTPS and a restrictive Content Security Policy where deployment permits.
 - Do not include contact data in diagnostics. Show actionable, non-sensitive storage errors.
 - Before the first contact is saved, show this notice in plain language: “Contacts are stored in this browser profile only. They are not encrypted, backed up, or synced. People sharing this browser profile and scripts running on this site may be able to access them.” Keep an accessible privacy link available afterward.
+- On the login/setup screen, disclose in plain language that this login is a local convenience gate for this browser only, is not encrypted account security, and that clearing this browser's storage removes both the credential and all contacts.
 
 These are architecture recommendations, not additional approved requirements. The user does not require legal review unless later determined applicable; no legal or regulatory compliance claim is made.
 
@@ -208,7 +220,7 @@ tests/
 index.html
 ```
 
-Avoid adding server, account, synchronization, import/export, or duplicate-detection modules unless requirements change.
+Avoid adding server, synchronization, import/export, or duplicate-detection modules unless requirements change. A `src/auth/` module (credential setup, hashing, login/logout, session flag) is approved as of revision 5 (FR-12); it remains local-only and introduces no server or multi-user account system.
 
 ## 10. Test Strategy
 
@@ -263,3 +275,5 @@ CS-01 resolves the supported-browser scope; it is not an open compatibility deci
 ## 14. Limitations
 
 Architecture revision 4 was approved by the user on 2026-10-21 under requirements revision 2. Historical browser and deployment checks remain limited to their recorded targets and do not establish verification for untested targets. This document does not inspect or validate implementation code, select final package versions, establish legal/privacy compliance, or authorize a new deployment. No product code was changed and no tests were run as part of revision 4.
+
+Architecture revision 5 was approved by the user on 2026-10-30 under requirements revision 3, adding the local login gate design (Section 2.1) and its security disclosure (Section 7) for FR-12. It makes no other change to revision 4's scope, components, or claims, and authorizes no deployment.
