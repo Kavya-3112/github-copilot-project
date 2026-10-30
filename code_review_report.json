@@ -1,0 +1,146 @@
+{
+  "repositoryUrl": "https://github.com/Kavya-3112/github-copilot-project",
+  "pullRequest": {
+    "number": 5,
+    "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5",
+    "title": "feat: implement FR-12 local login gate (T-08)",
+    "branch": "feature/fr-12-login-gate",
+    "baseBranch": "main",
+    "headSha": "3dd5b292b6f403f5e2b57d353555e3a23fdfff2",
+    "commitCount": 1,
+    "changedFiles": 17
+  },
+  "requirementsReviewed": [
+    "FR-12",
+    "NFR-01",
+    "NFR-02",
+    "NFR-03"
+  ],
+  "approvedPlanReferences": [
+    {
+      "doc": "requirements.md",
+      "revision": 3,
+      "ref": "docs/fr-12-login-gate-scope (PR #4)"
+    },
+    {
+      "doc": "architecture.md",
+      "revision": 5,
+      "ref": "docs/fr-12-login-gate-scope (PR #4)"
+    },
+    {
+      "doc": "impl-plan.md",
+      "revision": 4,
+      "ref": "docs/fr-12-login-gate-scope (PR #4)"
+    }
+  ],
+  "changedFiles": [
+    "README.md",
+    "impl-plan.md",
+    "src/auth/auth-state.ts",
+    "src/auth/credential-repository.ts",
+    "src/auth/crypto.ts",
+    "src/auth/session.ts",
+    "src/auth/types.ts",
+    "src/main.ts",
+    "src/styles.css",
+    "src/ui/contact-manager.ts",
+    "src/ui/login-view.ts",
+    "tests/browser/auth.spec.ts",
+    "tests/browser/support/auth.ts",
+    "tests/integration/auth-state.test.ts",
+    "tests/unit/auth-crypto.test.ts"
+  ],
+  "findings": [
+    {
+      "id": "CR-FR-12-001",
+      "severity": "HIGH",
+      "file": "src/ui/login-view.ts",
+      "lines": "1-30",
+      "title": "Potential XSS footgun: disclosure text interpolated into innerHTML",
+      "explanation": "The login view builds a large template string and assigns it to `root.innerHTML = ...`, including `${localOnlyDisclosure}`. Today this is a static constant, but this pattern is easy to regress into XSS if any interpolated value becomes dynamic in the future. The rest of the app uses `textContent` for user data, so this sticks out.",
+      "impact": "Increases risk of Client-side XSS if the content is ever made dynamic.",
+      "recommendation": "Avoid interpolating text into innerHTML. Create the disclosure element and set its .textContent, or escape before interpolation.",
+      "githubCommentUrl": "https://github.com/Kavya-3112/github-copilot-project/pull/5#discussion_r4421509392"
+    },
+    {
+      "id": "CR-FR-12-002",
+      "severity": "MEDIUM",
+      "file": "src/auth/auth-state.ts",
+      "lines": "64-106",
+      "title": "Username is validated as non-empty but not trimmed or normalized",
+      "explanation": "`AuthState.setup` considers any non-empty string valid, and then stores `hardly ' trimmedUsername' ` which is actually just `traded username as string as `string` without trimming. This permits whitespace-only usernames and makes login brittle (trailing space dissatch).",
+      "impact": "Users can accidentally lock themselves out with leading/trailing spaces; internal storage may contain odd values.",
+      "recommendation": "Update setup to trim and validate the trimmed value (eg. `username.trim() `, require length > 0). Consider trimming the login candidate username too.",
+      "githubCommentUrl": "https://github.com/Kavya-3112/github-copilot-project/pull/5#discussion_r4421509974"
+    },
+    {
+      "id": "CR-FR-12-003",
+      "severity": "MEDIUM",
+      "file": "src/auth/auth-state.ts",
+      "lines": "129-148",
+      "title": "logout() is not idempotent across states",
+      "explanation": "`Logout` is only allowed when current.status === \"authenticated\". If any edge case leads to a wanted force-logout (e.g., recover from inconsistent ui/session flag), the method is a no-op.",
+      "impact": "Lowers the robustness of the session gate in edge cases.",
+      "recommendation": "Consider making logout idempotent: always try to clear the sessionStorage flag, and transition to `needs-login` (or `needs-setup`  if no credential exists).",
+      "githubCommentUrl": "https://github.com/Kavya-3112/github-copilot-project/pull/5#discussion_r4421511020"
+    },
+    {
+      "id": "CR-FR-12-004",
+      "severity": "LOW",
+      "file": "src/ui/login-view.ts",
+      "lines": "50-80",
+      "title": "Slightly-broken/confusing TypeScript type for render() parameter",
+      "explanation": "The `render` parameter type uses a conditional type over `AuthState[\"snapshot\"]` that doesn't add safety, and makes the function hard to maintain. It can be a direct `AuthSnapshot` or the public signature of the subscribe callback.",
+      "impact": "Maintainability issue only.",
+      "recommendation": "Simplify the signature to `(snapshot: AuthSnapshot) => void`.",
+      "githubCommentUrl": "https://github.com/Kavya-3112/github-copilot-project/pull/5#discussion_r4421510500"
+    },
+    {
+      "id": "CR-FR-12-005",
+      "severity": "LOW",
+      "file": "src/auth/credential-repository.ts",
+      "lines": "48-87",
+      "title": "Test coverage init: add explicit parsing negative tests",
+      "explanation": "@src/auth/credential-repository.ts `basic parseCredential` is reasonably defensive, and integration tests cover ome tampered hash case. It would be nice to add unit tests that explicitly assert rejection of malformed stored payloads (missing fields, wrong schemaVersion, wrong hashAlgorithm).",
+      "impact": "Maintainability and regression protection.",
+      "recommendation": "Add unit tests for CredentialRepository.load() with malformed json and shape mismatches."
+    }
+  ],
+  "githubReviewComments": [
+    {
+      "type": "preview",
+      "id": 5709467800,
+      "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5#pullrequestreview-5709467800"
+    },
+    {
+      "type": "line_comment",
+      "id": 4421509392,
+      "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5#discussion_r4421509392"
+    },
+    {
+      "type": "line_comment",
+      "id": 4421509974,
+      "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5#discussion_r4421509974"
+    },
+    {
+      "type": "line_comment",
+      "id": 4421510500,
+      "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5#discussion_r4421510500"
+    },
+    {
+      "type": "line_comment",
+      "id": 4421511020,
+      "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5#discussion_r4421511020"
+    }
+  ],
+  "tests":{
+    "executed": [],
+    "notes": "No local test execution was performed as part of this review. The PR body claims all automated tests passed (Vitest, Playwright, typecheck, build, npm audit); these claims are not independently verified here."
+  },
+  "recommendation": "CHANGES_REQUIRED",
+  "humanApprovalStatus": "PENDING_HUMAN_REVIEW",
+  "errorsAndLimitations": [
+    "Could not write `sharep/code_review_report.json` into a repository `reports/` directory because the directory does not exist on the branch. The report is written to root as `code_review_report.json` instead.",
+    "Confluence/Jira artifacts were represented as repo MD files (requirements.md, architecture.md, impl-plan.md) under PR #4; no external integration was used."
+  ]
+}
