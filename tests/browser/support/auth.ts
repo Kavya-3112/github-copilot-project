@@ -42,3 +42,52 @@ export async function signInForTest(page: Page): Promise<void> {
     },
   );
 }
+
+/**
+ * Creates a test credential by performing the setup flow in the browser.
+ * Used by tests that need to verify login behavior after setup has occurred.
+ */
+export async function createCredential(
+  page: Page,
+  { username, passcode }: { username: string; passcode: string }
+): Promise<void> {
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Passcode").fill(passcode);
+  await page.getByRole("button", { name: /Set up|Create sign-in/i }).click();
+  // Wait for authentication to complete
+  await page.waitForTimeout(100);
+}
+
+/**
+ * Sets an authenticated session flag in sessionStorage without going through
+ * the login flow. Requires a valid credential to already exist in localStorage.
+ */
+export async function setAuthenticatedSession(page: Page): Promise<void> {
+  await page.addInitScript(
+    ({ key, value }) => sessionStorage.setItem(key, value),
+    { key: AUTH_SESSION_KEY, value: "authenticated" }
+  );
+}
+
+/**
+ * Clears authentication storage. By default clears both credential and session.
+ * Pass { preserveCredential: true } to clear only the session flag.
+ */
+export async function clearAuthStorage(
+  page: Page,
+  options: { preserveCredential?: boolean } = {}
+): Promise<void> {
+  await page.addInitScript(
+    ({ authKey, sessionKey, preserveCredential }) => {
+      if (!preserveCredential) {
+        localStorage.removeItem(authKey);
+      }
+      sessionStorage.removeItem(sessionKey);
+    },
+    {
+      authKey: AUTH_STORAGE_KEY,
+      sessionKey: AUTH_SESSION_KEY,
+      preserveCredential: options.preserveCredential ?? false,
+    }
+  );
+}

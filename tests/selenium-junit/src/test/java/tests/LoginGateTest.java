@@ -1,8 +1,8 @@
 package tests;
 
-import org.junit.jupiter.afterEach;
-import org.junit.jupiter.apis.test;
-import org.junit.jupiter.beforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -25,8 +25,8 @@ public class LoginGateTest {
   private WebDriver driver;
   private WebDriverWait wait;
   private String baseUrl;
- 
-  @beforeEach
+
+  @BeforeEach
   void setUp() {
     baseUrl = System.getProperty("baseUrl", "http://localhost:5173");
     ChromeOptions options = new ChromeOptions();
@@ -39,7 +39,7 @@ public class LoginGateTest {
     wait = new WebDriverWait(driver, Duration.ofSeconds(10));
   }
 
-  @afterEach
+  @AfterEach
   void tearDown() {
     if (driver != null) {
       driver.quit();
@@ -47,7 +47,7 @@ public class LoginGateTest {
   }
 
   private WebElement testId(String id) {
-    return driver.findElement(By.csSSelector("[data-testid='" + id + "']"));
+    return driver.findElement(By.cssSelector("[data-testid='" + id + "']"));
   }
 
   private void gotoHome() {
@@ -55,23 +55,23 @@ public class LoginGateTest {
     wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("[data-testid='login-form']")));
   }
 
-  @test
-  @displayName("Login form is available by default")
+  @Test
+  @DisplayName("Login form is available by default")
   void loginFormIsVisibleByDefault() {
     gotoHome();
     assertDoesNotThrow(() -> testId("login-form"));
   }
 
-  @test
+  @Test
   @DisplayName("Setup and authenticate shows contact manager")
   void setupAndAuthShowsContactManager() {
     gotoHome();
 
-    driver.findElement(By.xpath("//*label[self::label][contains(.,'Username')]/following::input[1]")).sendKeys("testuser");
-    driver.findElement(By.xpath("//*label[self:label][contains(.,'Passcode')]/following::input[1]")).sendKeys("123456");
+    driver.findElement(By.xpath("//label[contains(.,'Username')]/following::input[1]")).sendKeys("testuser");
+    driver.findElement(By.xpath("//label[contains(.,'Passcode')]/following::input[1]")).sendKeys("123456");
     driver.findElement(By.xpath("//button[contains(.,'Set up')]")).click();
 
-    wait.until(ExpectedConditions.visibilityOfElementLocated(By.csSSelector("[data-testid='contact-manager']"))));
-    assertThrows(Exception.class, () -> testId("login-form"));
+    wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("[data-testid='contact-manager']")));
+    assertThrows(org.openqa.selenium.NoSuchElementException.class, () -> testId("login-form"));
   }
 }
