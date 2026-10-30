@@ -1,0 +1,127 @@
+{
+  "repositoryUrl": "https://github.com/Kavya-3112/github-copilot-project",
+  "pullRequest": {
+    "number": 5,
+    "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5",
+    "title": "feat: implement FR-12 local login gate (T-08)",
+    "baseBranch": "main",
+    "developmentBranch": "feature/fr-12-login-gate",
+    "headShs": "157eccdaaccbf3f059d43bf782f75c56bd68b6a4",
+    "proLhead": {
+      "ref": "feature/fr-12-login-gate",
+      "label": "Kavya-3112:feature/fr-12-login-gate"
+    }
+  },
+  "baseComparison": {
+    "baseCommitSha": "4aa68658dae4e5d9c113b407a3625caf607b9ecc",
+    "compareUrl": "https://github.com/Kavya-3112/github-copilot-project/compare/main...feature/fr-12-login-gate",
+    "aheadBy": 3,
+    "behindBy": 1,
+    "status": "diverged"
+  },
+  "changedFiles": [
+    "README.md",
+    "impl-plan.md",
+    "src/auth/auth-state.ts",
+    "src/auth/credential-repository.ts",
+    "src/auth/crypto.ts",
+    "src/auth/session.ts",
+    "src/auth/types.ts",
+    "src/main.ts",
+    "src/styles.css",
+    "src/ui/contact-manager.ts",
+    "src/ui/login-view.ts",
+    "tests/browser/auth.spec.ts",
+    "tests/browser/support/auth.ts",
+    "tests/integration/auth-state.test.ts",
+    "tests/unit/auth-crypto.test.ts"
+  ],
+  "implementationOverview": "PR-5 implements FR-12 a client-side login gate: first-use setup (username + passcode), later sign-in, and logout. Credentials are stored in localStorage as a salted SHA-256 hash (cleartext passcode never persisted). Authentication is represented via a sessionStorage flag (current tab session only). The contact manager UI
+ is not mounted into the DOM until authenticated, and is unmounted on logout. Fix-001 wai addressed in src/main.ts with explicit lifecycle tracking and mount-failure handling.",
+  "reviewedComponents": [
+    "src/main.ts (auth gate wiring, mount/unmount, error handling)",
+    "src/auth/* (AuthState, credential storage, session flag)",
+    "src/ui/login-view.ts (setup/login UI, validation and accessible errors)",
+    "src/ui/contact-manager.ts (logout hook)",
+    "tests/unit/auth-crypto.test.ts",
+    "tests/integration/auth-state.test.ts",
+    "tests/browser/auth.spec.ts",
+    "tests/browser/contact-manager.spec.ts" (regression ajdustments for auth gate)
+  ],
+  "priorFindingResolutionStatus": {
+    "F-001": {
+      "status": "RESOLVED",
+      "evidence": "src/main.ts uses explicit currentView tracking, prevents duplicate mounts, and cleans up on logout; mount is in a try/catch with cleanup and user-see fallback."
+    },
+    "CR-01": {"status": "RESOLVED", "evidence": "AuthState.setup now trims username and rejects whitespace-only username/passcode; login trims username candidate. Tests cover whitespace-only inputs."},
+    "CR-02": {"status": "RESOLVED", "evidence": "login-view.ts imports and uses AuthSnapshot type."},
+    "CR-03": {"status": "RESOLVED", "evidence": "crypto.ts adds isCryptoAvailable(); generateSalt/hashPasscode throw on missing crypto. Unit tests cover unavailable crypto."},
+    "CR-04": {"status": "RESOLVED", "evidence": "login-view.ts username input sets autocapitalize=\"off\" and spellcheck=\"false\"."}
+  },
+  "securityObservations": [
+    "Contact data and credential hash are stored in browser storage and are not a security boundary; this is documented as a limitation.",
+    "Login view renders constant disclosure text via innerHTML interpolation; low immediate risk today but an XSS footgun if it ever becomes dynamic."
+  ],
+  "findings": [
+    {
+      "id": "FIND-001",
+      "severity": "HIGH",
+      "file": "src/ui/login-view.ts",
+      "lines": "approx 8-50, 12-20",
+      "title": "Potential XSS footgun: disclosure text interpolated into innerHTML",
+      "description": "`mountLoginGate` uses `root.innerHTML = ` and interpolates `${localOnlyDisclosure}`. It’s constant today, but the pattern increases regression risk if any interpolated value becomes user-controlled (client-side XSS).",
+      "whyItMatters": "Stronger security hardening and consistency with the rest of the codebase (which uses textContent for user values).",
+      "recommendedCorrection": "Render the disclosure element with `textContent` (comstruct NODEs or set it after innerHTML). Avoid interpolating text into innerHTML or escape if you must."
+    },
+    {
+      "id": "FIND-002",
+      "severity": "MEDIUM",
+      "file": "src/auth/auth-state.ts",
+      "lines": "approx 82-147 (setup/login)",
+      "title": "Crypto exceptions are not converted to a controlled \u2018unavailable\u2019 state",
+      "description": "`setup()`/`login()` invoke `generateSalt()` and `hashPasscode()` which throw when WebCrypto is unavailable. These are not caught, so the app could crash instead of rendering the existing 'unavailable' UI panel.",
+      "whyItMatters": "Robustness/error handling: the app already has a user-safe status for storage read failures. Crypto unavailability should be similarly handled to avoid uncaught rejections.",
+      "recommendedCorrection": "Wrap crypto operations in try/catch in AuthState setup/login, transition to {status:\"unavailable\", error: \"...\"} and return a generic failed result."
+    },
+    {
+      "id": "FIND-003",
+      "severity": "LOW",
+      "file": "tests/unit/auth-crypto.test.ts",
+      "lines": "approx 42-90",
+      "title": "Tests mutate globalThis.crypto via delete",
+      "description": "Tests delete `globalThis as any).crypto` to simulate missing crypto. This can be brittle/flaky if tests run in parallel or if restoration fails.",
+      "whyItMatters": "Test reliability and preventing cross-test pollution.",
+      "recommendedCorrection": "Use Vitest `vi.stubGlobal('crypto', undefined as any)` and `restoreAllGlobals`)/or another safe stub mechanism."
+    }
+  ],
+  "potentialRegressionAreas": [
+    "UI mount/unmount transitions between login and contact manager (logout, reload, multi-tab)",
+    "Contact UP warning install/cleanup on logout to avoid stale beforeunload handlers",
+    "Playwright browser tests seeding auth via addInitScript max mask real login flows; ensure both bypassed and real flows remain tested."
+  ],
+  "recommendedTestScenarios": {
+    "positive": [
+      "First-use setup stores salted hash and authenticates (no contact UI before)",
+      "Later login with correct credentials unlocks contact UI and persists session across reload in same tab",
+      "Logout clears session flag but keeps credential and contacts in localStorage",
+      "Contact CRUD and search still work after login (regression T-01..T-07)"
+    ],
+    "negative": [
+      "Wrong username or wrong passcode shows exactly one generic error and does not reveal which field is wrong",
+      "Whitespace-only username/passcode rejected at setup",
+      "Pre-login attempts do not render contact UP or expose contact data in DOM",
+      "Simulate missing WebCrypto: app should go to unavailable panel not crash"
+    ],
+    "edge": [
+      "Rapid logout/re-login cycles do not duplicate UI or listeners",
+      "Contact manager mount failure path: user sees fallback, logout works, subsequent login recovers",
+      "Multi-tab: fresh tab requires login even if same localStorage credential eěists"
+    ],
+    "regression": [
+      "Contact recovery flows (FR-09) and unsaved changes behavior (FR-10)",
+      "A11qe audit tests only run in authenticated state and still pass"
+    ]
+  },
+  "reviewStatus": "CHANGES_REQUIRED",
+  "reviewerNotes": "This report is based on static code inspection via GitHub API. No local test execution was performed by the reviewer in this step."
+ }
