@@ -1,0 +1,37 @@
+{
+  "status": "NOT_EXECUTED",
+  "reason": "No execution environment available in this workflow. Run the commands in the repo to produce actual evidence (logs, artifacts, screenshots, durations).",
+  "scope": {
+    "implementationPr": {
+      "number": 5,
+      "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5"
+    },
+    "baseBranch": "feature/fr-12-login-gate",
+    "baseCommitSha": "f1cb36efe9290cb1abb943dfc48736ab185a36a8",
+    "testArtifactBranch": "test/login-automation-pr5"
+  },
+  "suites": [
+    {
+      "name": "gherkin",
+      "location": "tests/gherkin/login.feature",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "name": "playwright-login-gate",
+      "location": "tests/browser/login-gate.spec.ts",
+      "status": "NOT_EXECUTED",
+      "runCommand": "npm run test:browser -- tests/browser/login-gate.spec.ts"
+    },
+    {
+      "name": "selenium-junit",
+      "location": "tests/selenium-junit",
+      "status": "NOT_EXECUTED",
+      "runCommand": "cd tests/selenium-junit && mvn -q -DbaseUrl=http://localhost:5173 test"
+    }
+  ],
+  "requirementsTraceability": {
+    "formalDocsContainFR12": false,
+    "note": "FR-12 is not present in requirements.md or architecture.md. Traceability for these tests is in PR #5 and its supporting documents."
+  },
+  "createdAt": "2026-10-30T00:00:00Z"
+}
