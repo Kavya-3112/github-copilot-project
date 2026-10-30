@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { signInForTest } from "./support/auth";
 
 const storageKey = "contact-management:contacts:v1";
 const privacyNotice = "Contacts are stored in this browser profile only. They are not encrypted, backed up, or synced. People sharing this browser profile and scripts running on this site may be able to access them.";
 
 test("serves the app with accessible controls, privacy notice, and responsive layout", async ({ page }) => {
+  await signInForTest(page);
   await page.goto("/");
   await expect(page).toHaveTitle("Contact Management System");
   await expect(page.getByRole("main")).toHaveCount(1);
@@ -39,7 +41,9 @@ test("completes create, search, edit, and delete using keyboard input only", asy
     }
   };
 
+  await signInForTest(page);
   await page.goto("/");
+  await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
@@ -90,6 +94,7 @@ test("completes create, search, edit, and delete using keyboard input only", asy
 });
 
 test("creates, searches, edits, cancels deletion, deletes, and persists contacts", async ({ page }) => {
+  await signInForTest(page);
   await page.goto("/");
   await page.getByRole("button", { name: "Add contact" }).click();
   const formDialog = page.getByRole("dialog", { name: "Add contact" });
@@ -142,6 +147,7 @@ test("returns focus to the next contact action after deleting a middle contact",
     ],
     nextCreatedOrder: 3,
   })), storageKey);
+  await signInForTest(page);
   await page.goto("/");
 
   await page.getByRole("button", { name: "Delete Grace" }).click();
@@ -157,6 +163,7 @@ test("moves focus to the empty-state heading after deleting the last contact", a
     contacts: [{ id: "ada", name: "Ada", phone: "1234567", createdOrder: 0 }],
     nextCreatedOrder: 1,
   })), storageKey);
+  await signInForTest(page);
   await page.goto("/");
 
   await page.getByRole("button", { name: "Delete Ada" }).click();
@@ -167,6 +174,7 @@ test("moves focus to the empty-state heading after deleting the last contact", a
 
 test("renders hostile-looking contact text literally without putting it in the URL", async ({ page }) => {
   const hostileName = '<img src=x onerror="alert(1)">';
+  await signInForTest(page);
   await page.goto("/");
   const initialUrl = page.url();
   await page.getByRole("button", { name: "Add contact" }).click();
@@ -181,6 +189,7 @@ test("renders hostile-looking contact text literally without putting it in the U
 });
 
 test("announces missing and invalid fields and directs focus to the first error", async ({ page }) => {
+  await signInForTest(page);
   await page.goto("/");
   await page.getByRole("button", { name: "Add contact" }).click();
   await page.getByRole("button", { name: "Save contact" }).click();
@@ -203,6 +212,7 @@ test("announces missing and invalid fields and directs focus to the first error"
 test("salvages valid records only after confirmation and preserves the exact original", async ({ page }) => {
   const raw = '{ "schemaVersion": 99, "contacts": [{"id":"saved","name":"Ada","phone":"1234567","createdOrder":4}], "opaque": true }';
   await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: storageKey, value: raw });
+  await signInForTest(page);
   await page.goto("/");
 
   const recoveryDialog = page.getByRole("dialog", { name: "Stored contacts need attention" });
@@ -245,6 +255,7 @@ test("announces reload failure and focuses Retry after recovery was saved", asyn
       return originalGetItem.call(this, itemKey);
     };
   }, { key: storageKey, value: raw });
+  await signInForTest(page);
   await page.goto("/");
 
   await page.getByRole("dialog", { name: "Stored contacts need attention" }).waitFor();
@@ -286,6 +297,7 @@ test("reopens accessible recovery when the post-replacement reload is unreadable
       return originalGetItem.call(this, itemKey);
     };
   }, { key: storageKey, value: raw });
+  await signInForTest(page);
   await page.goto("/");
 
   await page.getByRole("dialog", { name: "Stored contacts need attention" }).waitFor();
@@ -311,6 +323,7 @@ test("reopens accessible recovery when the post-replacement reload is unreadable
 test("keeps the first-save privacy notice visible after empty recovery until a contact is saved", async ({ page }) => {
   const raw = '{"schemaVersion":99,"contacts":[{"id":"invalid","name":"Ada","phone":"letters","createdOrder":1}]}';
   await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: storageKey, value: raw });
+  await signInForTest(page);
   await page.goto("/");
 
   const recoveryDialog = page.getByRole("dialog", { name: "Stored contacts need attention" });
@@ -343,6 +356,7 @@ test("blocks recovery accessibly if the original cannot be backed up", async ({ 
       originalSetItem.call(this, itemKey, nextValue);
     };
   }, { key: storageKey, value: raw });
+  await signInForTest(page);
   await page.goto("/");
   await page.getByRole("button", { name: "Back up original and recover" }).click();
 
@@ -367,6 +381,7 @@ test("keeps failed changes visible, warns before unload, retries, and discards c
     };
     localStorage.setItem("test-fail-contact-save", "true");
   }, storageKey);
+  await signInForTest(page);
   await page.goto("/");
   await page.getByRole("button", { name: "Add contact" }).click();
   await page.getByLabel("Name", { exact: true }).fill("Katherine Johnson");
@@ -412,6 +427,7 @@ test("reports storage read errors clearly", async ({ page }) => {
       return originalGetItem.call(this, itemKey);
     };
   }, storageKey);
+  await signInForTest(page);
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Contacts are unavailable" })).toBeVisible();
   await expect(page.getByText("Contacts could not be read from browser storage.")).toBeVisible();

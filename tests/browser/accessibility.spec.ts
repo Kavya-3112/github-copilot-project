@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { signInForTest } from "./support/auth";
 
 const storageKey = "contact-management:contacts:v1";
 
@@ -15,6 +16,7 @@ async function expectNoAccessibilityViolations(page: import("@playwright/test").
 }
 
 test("has no automated WCAG A/AA violations in the main interactive states", async ({ page }) => {
+  await signInForTest(page);
   await page.goto("/");
   await expectNoAccessibilityViolations(page);
 
