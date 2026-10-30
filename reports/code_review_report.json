@@ -1,0 +1,109 @@
+{
+  "repositoryUrl": "https://github.com/Kavya-3112/github-copilot-project",
+  "baseBranch": "main",
+  "developmentBranch": "feature/fr-12-login-gate",
+  "reviewedCommitSha": "454f0a3c20ebe81616fda4be8644a9eb6efbabee",
+  "pullRequest": {
+    "number": 5,
+    "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5",
+    "title": "feat: implement FR-12 local login gate (T-08)"
+  },
+  "baseComparison": {
+    "baseBranch": "main",
+    "baseSha": "a9cbb1c3439ed44b8afacb61c3e7d39eab3f923d",
+    "compareUrl": "https://github.com/Kavya-3112/github-copilot-project/compare/main...feature/fr-12-login-gate"
+  },
+  "changedFiles": [
+    "README.md",
+    "impl-plan.md",
+    "src/auth/auth-state.ts",
+    "src/auth/credential-repository.ts",
+    "src/auth/crypto.ts",
+    "src/auth/session.ts",
+    "src/auth/types.ts",
+    "src/main.ts",
+    "src/styles.css",
+    "src/ui/contact-manager.ts",
+    "src/ui/login-view.ts",
+    "tests/unit/auth-crypto.test.ts",
+    "tests/integration/auth-state.test.ts",
+    "tests/browser/auth.spec.ts",
+    "tests/browser/support/auth.ts"
+  ],
+  "implementationOverview": "PR #5 implements FR-12 (local login gate): first-use setup (create username + passcode), later login, and logout. Credentials are stored in localStorage as a salted SHA-256 hash (never plaintext) under a dedicate key, and the authenticated state is represented only by a sessionStorage flag (tab-scoped). The contact manager UI
+  is not mounted into the DOM until authenticated, and is fully unmounted again on logout.",
+  "reviewedComponents": [
+    "src/auth/auth-state.ts (state machine, validation, crypto-failure handling)",
+    "src/auth/crypto.ts (Web Crypto guards, salt, hash)",
+    "src/auth/credential-repository.ts (storage key, schema validation)",
+    "src/main.ts (auth gate mount/unmount, logout wiring, unsaved changes warning lifecycle)",
+    "src/ui/login-view.ts (setup/login UI, accessible error handling)",
+    "src/ui/contact-manager.ts (logout button integration)",
+    "tests/unit/auth-crypto.test.ts (crypto unit tests, stubGlobal)",
+    "tests/integration/auth-state.test.ts (session, gating, generic error, crypto unavailable)",
+    "tests/browser/auth.spec.ts (user-flow and regression browser scenarios)",
+    "tests/browser/support/auth.ts (auth preseeding helpers)"
+  ],
+  "priorFindingsVerification": {
+    "CR-01": { "status": "VERIFIED_FIXED_IN_HEAD", "evidence": "src/auth/auth-state.ts rejects whitespace-only username/passcode on setup, and trims username on setup and login; integration tests cover whitespace scenarios." },
+    "CR-02": { "status": "VERIFIED_FIXED_IN_HEAD", "evidence": "src/ui/login-view.ts uses imported AuthSnapshot type." },
+    "CR-03": { "status": "VERIFIED_FIXED_IN_HEAD", "evidence": "src/auth/crypto.ts adds isCryptoAvailable(); auth-state catches crypto errors and transitions to 'unavailable' state." },
+    "CR-04": { "status": "VERIFIED_FIXED_IN_HEAD", "evidence": "src/ui/login-view.ts username input has autocapitalize=off and spellcheck=false." },
+    "FIND-001": { "status": "VERIFIED_FIXED_IN_HEAD", "evidence": "src/ui/login-view.ts does not interpolate disclosure text into innerHTML; it sets it via textContent." },
+    "FIND-002": { "status": "VERIFIED_FIXED_IN_HEAD", "evidence": "src/auth/auth-state.ts wraps generateSalt/hashPasscode in try/catch and sets unavailable state with user-friendly message." },
+    "FIND-003": { "status": "VERIFIED_FIXED_IN_HEAD", "evidence": "tests/unit/auth-crypto.test.ts uses vi.stubGlobal('crypto', undefined) and vi.unstubAllGlobals() for isolation." }
+  },
+  "reviewFindings": [
+    {
+      "id": "CR-PR-001",
+      "severity": "Low",
+      "file": "src/main.ts",
+      "evidenceSection": "catch (error) { ... currentView = \"contact\" // Mark as mounted to prevent duplicate attempts }",
+      "description": "On contact manager mount failure, the app renders a fallback error UI but sets currentView to \"contact\". This can prevent any future remount attempt in the same tab session (even after logout/re-login) until a page reload.",
+      "whyItMatters": "Recoverability: a transient failure or partial state can leave the app stuck on an error screen. FR-12 expects logout/login to be reliable recovery mechanism.",
+      "recommendedCorrection": "Use a distinct view state (e.g. \"error\") or leave currentView as \"login\"/\"none\" and allow a subsequent auth-to-authed transition to retry mounting. Consider adding a \"Retry loading\" action."
+    },
+    {
+      "id": "CR-PR-002",
+      "severity": "Informational",
+      "file": "src/main.ts",
+      "evidenceSection": "appRoot.innerHTML = `...` (constant markup)",
+      "description": "The fallback error markup uses innerHTML. It is constant today (no interpolation), which is good. Keep it that way to avoid futurh xss regressions.",
+      "whyItMatters": "Mitigates future regression risk when templates later get dynamic content.",
+      "recommendedCorrection": "Unless necessary, prefer building DOM nodes via document.createElement() and textContent or keep the HTML string constant as rectified."
+    }
+  ],
+  "securityObservations": [
+    "Credential storage uses a salted SHA-256 hash; plaintext passcode is never persisted.",
+    "Passcode is cleared on failed login attempts in login-view.ts",
+    "Contact UI is not mounted pre-auth; DOM gatekeeping reduces accidental data exposure.",
+    "Web Crypto unavailability is handled with a controlled unavailable state."
+  ],
+  "potentialRegressionAreas": [
+    "Mount/unmount lifecycle in src/main.ts (especially failure fallback)",
+    "Unsaved changes warning install/cleanup when toggling between authenticated and login UIs",
+    "Tests that pre-seed auth via addInitScript should continue to exist along real login-flow tests (auth.spec.ts does test real flows)"
+  ],
+  "recommendedTestScenarios": {
+    "positive": [
+      "First-use setup: credate credential, authenticate, and unlock contact UIB",
+      "Later login: correct username+passcode unlocks contact UI, session persists across reload in same tab",
+      "Logout: clears session flag, keeps credential and contacts in localStorage",
+      "Contact CRUD/search/persistence regression after login (T-01..T-07)"
+    ],
+    "negative": [
+      "Wrong username vs wrong passcode: both show the exact same generic error (Invalid username or passcode.)",
+      "Whitespace-only inputs rejected on setup",
+      "Pre-login: contact data/controls not present in DOM (DOM gating)",
+      "Crypto unavailable: app shows 'Sign-in is currently unavailable' panel, does not crash"
+    ],
+    "edge": [
+      "Rapid logout/re-login cycles do not duplicate Ui mounts or listeners",
+      "Contact manager mount failure: verify user can logout from fallback and subsequent login can recover (see CR-PR-001)",
+      "New-tab: fresh tab requires login even with stored credential"
+    ]
+  },
+  "reviewStatus": "APPROVED",
+  "reviewDate": "2026-10-30",
+  "notes": "This review was performed via GitHub API static inspection. No tests were executed by the reviewer in this step."
+}
