@@ -20,7 +20,7 @@ export function mountLoginGate(root: HTMLElement, authState: AuthState): void {
           </div>
         </section>
 
-        <p id="auth-disclosure" class="auth-disclosure">${localOnlyDisclosure}</p>
+        <p id="auth-disclosure" class="auth-disclosure"></p>
 
         <section id="auth-loading-panel" class="message-panel" role="status" aria-live="polite" hidden>
           <h2>Checking for a saved sign-in</h2>
@@ -57,6 +57,10 @@ export function mountLoginGate(root: HTMLElement, authState: AuthState): void {
     if (!element) throw new Error(`Missing interface element: ${selector}`);
     return element;
   };
+
+  // FIND-001 FIX: Set disclosure text safely using textContent
+  const disclosureElement = query<HTMLElement>("#auth-disclosure");
+  disclosureElement.textContent = localOnlyDisclosure;
 
   const form = query<HTMLFormElement>("#auth-form");
   const usernameInput = query<HTMLInputElement>("#auth-username");

@@ -5,6 +5,7 @@ import { HASH_ALGORITHM, type CredentialFieldErrors, type StoredCredentialV1 } f
 
 const SESSION_AUTHENTICATED_VALUE = "authenticated";
 const GENERIC_LOGIN_ERROR = "Invalid username or passcode.";
+const CRYPTO_UNAVAILABLE_ERROR = "Sign-in is currently unavailable. Your browser may not support the required cryptographic features.";
 
 export type AuthStatus = "loading" | "needs-setup" | "needs-login" | "authenticated" | "unavailable";
 
@@ -94,8 +95,19 @@ export class AuthState {
 
     const trimmedUsername = (username as string).trim();
     const enteredPasscode = passcode as string;
-    const salt = generateSalt();
-    const passwordHash = await hashPasscode(enteredPasscode, salt);
+
+    // FIND-002 FIX: Handle crypto unavailability in setup flow
+    let salt: string;
+    let passwordHash: string;
+    try {
+      salt = generateSalt();
+      passwordHash = await hashPasscode(enteredPasscode, salt);
+    } catch (error) {
+      this.current = { status: "unavailable", username: null, error: CRYPTO_UNAVAILABLE_ERROR };
+      this.notify();
+      return { kind: "failed", reason: CRYPTO_UNAVAILABLE_ERROR };
+    }
+
     const credential: StoredCredentialV1 = {
       schemaVersion: 1,
       username: trimmedUsername,
@@ -125,7 +137,17 @@ export class AuthState {
 
     const candidateUsername = typeof username === "string" ? username.trim() : "";
     const candidatePasscode = typeof passcode === "string" ? passcode : "";
-    const candidateHash = await hashPasscode(candidatePasscode, this.credential.salt);
+
+    // FIND-002 FIX: Handle crypto unavailability in login flow
+    let candidateHash: string;
+    try {
+      candidateHash = await hashPasscode(candidatePasscode, this.credential.salt);
+    } catch (error) {
+      this.current = { status: "unavailable", username: null, error: CRYPTO_UNAVAILABLE_ERROR };
+      this.notify();
+      return { kind: "failed", reason: CRYPTO_UNAVAILABLE_ERROR };
+    }
+
     const matches = candidateUsername === this.credential.username
       && candidateHash === this.credential.passwordHash;
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AUTH_STORAGE_KEY,
   CredentialRepository,
@@ -250,5 +250,84 @@ describe("auth state", () => {
 
     const result = await loginState.login("   ", "correct-passcode");
     expect(result).toEqual({ kind: "failed", reason: "Invalid username or passcode." });
+  });
+
+  // FIND-002 TESTS: Crypto unavailable scenarios
+  it("transitions to unavailable state when crypto fails during setup", async () => {
+    const state = createState();
+    state.load();
+    expect(state.snapshot.status).toBe("needs-setup");
+
+    vi.stubGlobal("crypto", undefined);
+    try {
+      const result = await state.setup("ada", "correct-passcode");
+      expect(result.kind).toBe("failed");
+      expect(result).toMatchObject({
+        kind: "failed",
+        reason: expect.stringContaining("unavailable"),
+      });
+      expect(state.snapshot.status).toBe("unavailable");
+      expect(state.snapshot.error).toBeTruthy();
+      expect(state.snapshot.error).not.toContain("correct-passcode");
+      expect(localValues.getItem(AUTH_STORAGE_KEY)).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("transitions to unavailable state when crypto fails during login", async () => {
+    const setupState = createState();
+    setupState.load();
+    await setupState.setup("ada", "correct-passcode");
+
+    const loginState = new AuthState(new CredentialRepository(localValues), new MemoryStorage());
+    loginState.load();
+    expect(loginState.snapshot.status).toBe("needs-login");
+
+    vi.stubGlobal("crypto", undefined);
+    try {
+      const result = await loginState.login("ada", "correct-passcode");
+      expect(result.kind).toBe("failed");
+      expect(result).toMatchObject({
+        kind: "failed",
+        reason: expect.stringContaining("unavailable"),
+      });
+      expect(loginState.snapshot.status).toBe("unavailable");
+      expect(loginState.snapshot.error).toBeTruthy();
+      expect(loginState.snapshot.error).not.toContain("correct-passcode");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not expose internal error messages when crypto fails", async () => {
+    const state = createState();
+    state.load();
+
+    vi.stubGlobal("crypto", undefined);
+    try {
+      const result = await state.setup("ada", "correct-passcode");
+      expect(result).toMatchObject({ kind: "failed" });
+      expect(state.snapshot.error).not.toContain("Cryptographic functionality is unavailable in this environment");
+      expect(result.kind === "failed" && result.reason).not.toContain("Cryptographic functionality is unavailable in this environment");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not store plaintext credentials when crypto fails during setup", async () => {
+    const state = createState();
+    state.load();
+
+    vi.stubGlobal("crypto", undefined);
+    try {
+      await state.setup("ada", "correct-passcode");
+      expect(localValues.getItem(AUTH_STORAGE_KEY)).toBeNull();
+      
+      const allStoredValues = Array.from(localValues.values.values()).join("");
+      expect(allStoredValues).not.toContain("correct-passcode");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

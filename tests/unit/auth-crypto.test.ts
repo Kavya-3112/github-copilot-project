@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { generateSalt, hashPasscode, isCryptoAvailable } from "../../src/auth/crypto";
 
 describe("auth crypto", () => {
@@ -55,30 +55,25 @@ describe("auth crypto", () => {
     expect(isCryptoAvailable()).toBe(true);
   });
 
+  // FIND-003 FIX: Use vi.stubGlobal instead of delete for test isolation
   it("throws an error when attempting to generate salt without crypto", () => {
-    const originalCrypto = globalThis.crypto;
-    const originalGetRandomValues = globalThis.crypto?.getRandomValues;
+    vi.stubGlobal("crypto", undefined);
     try {
-      delete (globalThis as any).crypto;
       expect(isCryptoAvailable()).toBe(false);
       expect(() => generateSalt()).toThrow("Cryptographic functionality is unavailable");
     } finally {
-      if (originalCrypto) {
-        globalThis.crypto = originalCrypto;
-      }
+      vi.unstubAllGlobals();
     }
   });
 
+  // FIND-003 FIX: Use vi.stubGlobal instead of delete for test isolation
   it("throws an error when attempting to hash passcode without crypto", async () => {
-    const originalCrypto = globalThis.crypto;
+    vi.stubGlobal("crypto", undefined);
     try {
-      delete (globalThis as any).crypto;
       expect(isCryptoAvailable()).toBe(false);
       await expect(hashPasscode("test-passcode", "test-salt")).rejects.toThrow("Cryptographic functionality is unavailable");
     } finally {
-      if (originalCrypto) {
-        globalThis.crypto = originalCrypto;
-      }
+      vi.unstubAllGlobals();
     }
   });
 });
