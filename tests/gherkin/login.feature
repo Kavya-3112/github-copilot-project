@@ -1,0 +1,74 @@
+Functionality: FR-12 local login gate (PR #5)
+
+Note: FR-12 is implemented in PR #5 but it is not part of the formal approved repository requirements.md/architecture.md docs.
+This feature is traced to PR #5 (and PR-description.md/impl-plan.md in this repo) only.
+
+Browser: Chrome
+Base URL: http://localhost:5173
+
+Feature: Login gate for Contact Manager
+  As user
+  I want to set up a local username/passcode and log in
+  So that the contact manager UI is only accessible after authentication
+
+  Background:
+    Given the application is running at "<baseUrl>"
+    And the user is on the login screen
+
+  # -------------------------------------------------------------------------
+  # POSITIVE sentarios
+  # -------------------------------------------------------------------------
+  Scenario: First-use setup creates credential and authenticates
+    When the user enters username "testuser"
+    And the user enters passcode "123456"
+    And the user clicks "Set up"
+    Then the user should be authenticated
+    And the Contact Manager UI should be visible
+    And the login form should not be visible
+
+  Scenario: Subsequent login with valid credentials authenticates
+    Given a credential has already been created for username "testuser" and passcode "123456"
+    When the user enters username "testuser"
+    And the user enters passcode "123456"
+    And the user clicks "Log in"
+    Then the user should be authenticated
+    And the Contact Manager UI should be visible
+
+  Scenario: Reloading the page in the same tab keeps the session
+    Given the user is authenticated
+    When the user reloads the page
+    Then the user should remain authenticated
+    And the Contact Manager UI should be visible
+
+  Scenario: Logout ends the session and returns to login
+    Given the user is authenticated
+    When the user clicks "Log out"
+    Then the user should not be authenticated
+    And the login form should be visible
+    And the Contact Manager UI should not be visible
+
+  # ---------------------------------------------------------------------------
+  # NEGATIVE and edge scenarios
+  # -------------------------------------------------------------------------
+  Scenario: Invalid credentials show a generic error message (no username enumeration)
+    Given a credential has already been created for username "testuser" and passcode "123456"
+    When the user enters username "testuser"
+    And the user enters passcode "000000"
+    And the user clicks "Log in"
+    Then the user should see a generic invalid credentials error message
+    And the user should not be authenticated
+
+  Scenario: Whitespace-only username is rejected during setup
+    When the user enters username "   "
+    And the user enters passcode "123456"
+    And the user clicks "Set up"
+    Then the user should see a username validation error and the setup should not complete
+
+  Scenario: Whitespace-only passcode is rejected during setup
+    When the user enters username "testuser"
+    And the user enters passcode "    "
+    And the user clicks "Set up"
+    Then the user should see a passcode validation error and the setup should not complete
+
+  # Note: Crypto-unavailable flows are hard to simulate in bare Bhavior features
+  # and are verified via unit/integration tests in this repo.
