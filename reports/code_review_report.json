@@ -1,0 +1,95 @@
+{
+  "repositoryUrl": "https://github.com/Kavya-3112/github-copilot-project",
+  "baseBranch": "main",
+  "developmentBranch": "feature/fr-12-login-gate",
+  "reviewedCommitSha": "f1cb36efe9290cb1abb943dfc48736ab185a36a8",
+  "pullRequest": {
+    "number": 5,
+    "url": "https://github.com/Kavya-3112/github-copilot-project/pull/5",
+    "title": "feat: implement FR-12 local login gate (T-08)"
+  },
+  "baseComparison": {
+    "baseCommitSha": "a9cbb1c3439ed44b8afacb61c3e7d39eab3f923d",
+    "compareUrl": "https://github.com/Kavya-3112/github-copilot-project/compare/main...feature/fr-12-login-gate"
+  },
+  "changedFiles": [
+    "README.md",
+    "impl-plan.md",
+    "src/auth/auth-state.ts",
+    "src/auth/credential-repository.ts",
+    "src/auth/crypto.ts",
+    "src/auth/session.ts",
+    "src/auth/types.ts",
+    "src/main.ts",
+    "src/ui/contact-manager.ts",
+    "src/ui/login-view.ts",
+    "tests/unit/auth-crypto.test.ts",
+    "tests/integration/auth-state.test.ts",
+    "tests/browser/auth.spec.ts",
+    "tests/browser/support/auth.ts"
+  ],
+  "implementationOverview": "PRM-5 implements FR-12 (T_08): a local, client-side login gate before any contact data or controls are rendered. First-use setup creates a username and a salted SHA-256 hash of the passcode stored in a dedicated localStorage key (contact-management:auth:v1). Authentication is represented by a sessionStorage flag (tab-scoped) and cleared on logout. The contact manager UI is not mounted into the DOM until authenticated, and is unmounted on logout. Tests were added across unit//integration/browser layers to cover setup, login, logout, session behavior, and regression contact crud.",
+  "reviewedComponents": [
+    "src/auth/auth-state.ts",
+    "src/auth/credential-repository.ts",
+    "src/auth/crypto.ts",
+    "src/auth/session.ts",
+    "src/ui/login-view.ts",
+    "src/main.ts",
+    "src/ui/contact-manager.ts",
+    "tests/unit/auth-crypto.test.ts",
+    "tests/integration/auth-state.test.ts",
+    "tests/browser/auth.spec.ts",
+    "tests/browser/support/auth.ts"
+  ],
+  "securityObservations": [
+    "Credential storage uses a salted SHA-256 hash; plaintext passcode is not persisted.",
+    "The login gate is explicitly documented as a local convenience gate and not a security boundary.",
+    "UIs avoid interpolating user-provided values into innerHTML; new login disclosure text is set via textContent."
+  ],
+  "potentialRegressionAreas": [
+    "Auth/contact UI mount-unmount lifecycle (logout, reload, rapid state changes).",
+    "Unsaved changes beforeunload warning install/cleanup when the contact UI is unmounted.",
+    "Test bypass path via seeded auth should not replace real login path coverage (auth.spec.ts does cover both)."
+  ],
+  "findings": [
+    {
+      "id": "CR-PRM-001",
+      "severity": "LOW",
+      "file": "src/main.ts",
+      "section": "authState.subscribe catch block (contact mount failure fallback)",
+      "description": "On mount failure, the code sets currentView = \"contact\" to prevent duplicate attempts. This also prevents any future remount attempt without a page reload even if the user logouts/re-logins.",
+      "whyItMatters": "Recoverability: transient errors or partial state could leave the app stuck on an error screen.",
+      "recommendedCorrection": "Consider a separate \"/error\" view state or keep currentView as \"/login\"/\"none\" and allow a retry/relog mecajsnism to attempt mount again."
+    },
+    {
+      "id": "CR-PRM-002",
+      "severity": "INFO",
+      "file": "src/main.ts",
+      "section": "appRoot.innerHTML in error fallback",
+      "description": "Error fallback markup is set via innerHTML. It is constant today; ensure no user-controlled values are ever interpolated there.",
+      "whyItMatters": "Maintains a consistent XNS posture and prevents future regressions.",
+      "recommendedCorrection": "Keep the markup constant or build DOM nodes and set textContent for any variable text."
+    }
+  ],
+  "recommendedTestScenarios": {
+    "positive": [
+      "First-use setup: creates credential, authenticates, contact UI.",
+      "Later visit: requires login, and success unlocks contact UI.",
+      "Same-tab reload: session persists via sessionStorage.",
+      "Logout: clears session flag, does not delete credential or contacts.",
+      "Regression: contact CRUD, search, recovery, unsaved changes warning."
+    ],
+    "negative": [
+      "Wrong username or passcode: show exactly \"invalid username or passcode\" generic error.",
+      "Pre-login: contact data/controls are not present in DOM.",
+      "Crypto unavailable: setup/login transitions to \"unavailable\" state, user sees friendly message."
+    ],
+    "edge": [
+      "Multi-tab: fresh tab requires login even with same localStorage credential.",
+      "Rapid logout/re-login cycles: no duplicate UI mounts or listeners."
+    ]
+  },
+  "reviewStatus": "APPROVED",
+  "notes": "This review is based on static inspection via GitHub API. No local test execution was performed in Workflow 3."
+}
