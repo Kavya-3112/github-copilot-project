@@ -140,3 +140,78 @@ test("requires re-prompting in a fresh tab session even with the same stored cre
   await expect(freshTabPage.getByRole("button", { name: "Add contact" })).toHaveCount(0);
   await freshTabPage.close();
 });
+
+test("prevents duplicate UI mounting on rapid authentication state changes", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Username").fill(TEST_USERNAME);
+  await page.getByLabel("Passcode").fill(TEST_PASSCODE);
+  await page.getByRole("button", { name: "Create sign-in" }).click();
+  await expect(page.getByRole("button", { name: "Add contact" })).toBeVisible();
+  
+  // Verify only one contact manager UI is mounted
+  const contactLists = await page.locator("#contact-list").count();
+  expect(contactLists).toBe(1);
+  
+  // Reload page to trigger authentication state change
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Add contact" })).toBeVisible();
+  
+  // Still only one UI should be mounted
+  const contactListsAfterReload = await page.locator("#contact-list").count();
+  expect(contactListsAfterReload).toBe(1);
+});
+
+test("cleanly transitions between login and contact UIs on logout and re-login", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Username").fill(TEST_USERNAME);
+  await page.getByLabel("Passcode").fill(TEST_PASSCODE);
+  await page.getByRole("button", { name: "Create sign-in" }).click();
+  await expect(page.getByRole("button", { name: "Add contact" })).toBeVisible();
+  
+  // Add a contact to verify it persists
+  await page.getByRole("button", { name: "Add contact" }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Test Contact");
+  await page.getByLabel("Phone number", { exact: true }).fill("1234567");
+  await page.getByRole("button", { name: "Save contact" }).click();
+  await expect(page.getByRole("heading", { name: "Test Contact", level: 3 })).toBeVisible();
+  
+  // Verify contact UI elements are present
+  expect(await page.locator("#contact-list").count()).toBe(1);
+  
+  // Logout
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
+  
+  // Verify contact UI is completely removed
+  expect(await page.locator("#contact-list").count()).toBe(0);
+  expect(await page.getByRole("button", { name: "Add contact" }).count()).toBe(0);
+  
+  // Re-login
+  await page.getByLabel("Username").fill(TEST_USERNAME);
+  await page.getByLabel("Passcode").fill(TEST_PASSCODE);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  
+  // Verify contact UI is re-mounted and contact persists
+  await expect(page.getByRole("heading", { name: "Test Contact", level: 3 })).toBeVisible();
+  expect(await page.locator("#contact-list").count()).toBe(1);
+});
+
+test("handles multiple rapid logout and login cycles without UI duplication", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Username").fill(TEST_USERNAME);
+  await page.getByLabel("Passcode").fill(TEST_PASSCODE);
+  await page.getByRole("button", { name: "Create sign-in" }).click();
+  await expect(page.getByRole("button", { name: "Add contact" })).toBeVisible();
+  
+  for (let i = 0; i < 3; i++) {
+    await page.getByRole("button", { name: "Log out" }).click();
+    await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
+    expect(await page.locator("#contact-list").count()).toBe(0);
+    
+    await page.getByLabel("Username").fill(TEST_USERNAME);
+    await page.getByLabel("Passcode").fill(TEST_PASSCODE);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("button", { name: "Add contact" })).toBeVisible();
+    expect(await page.locator("#contact-list").count()).toBe(1);
+  }
+});

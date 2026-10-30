@@ -20,9 +20,13 @@ const authState = new AuthState(
   createBrowserSessionPort(),
 );
 
+// Explicit lifecycle state tracking to prevent inconsistent UI states
+type MountedView = "none" | "login" | "contact";
+let currentView: MountedView = "none";
 let uninstallUnsavedWarning: (() => void) | null = null;
 
 mountLoginGate(authRoot, authState);
+currentView = "login";
 
 authState.subscribe((snapshot) => {
   const authorized = isContactAccessAuthorized(snapshot);
@@ -30,18 +34,51 @@ authState.subscribe((snapshot) => {
   appRoot.hidden = !authorized;
 
   if (authorized) {
-    if (appRoot.childElementCount === 0) {
-      const repository = new ContactRepository(createBrowserStoragePort());
-      const contactState = new ContactState(repository);
-      mountContactManager(appRoot, contactState, repository, () => authState.logout());
-      uninstallUnsavedWarning = installUnsavedChangesWarning(contactState);
-      void contactState.load();
+    // Only mount contact manager if not already mounted
+    if (currentView !== "contact") {
+      try {
+        const repository = new ContactRepository(createBrowserStoragePort());
+        const contactState = new ContactState(repository);
+        mountContactManager(appRoot, contactState, repository, () => authState.logout());
+        uninstallUnsavedWarning = installUnsavedChangesWarning(contactState);
+        void contactState.load();
+        currentView = "contact";
+      } catch (error) {
+        // If mounting fails, clean up any partially created UI
+        cleanupContactView();
+        // Display a safe error message to the user
+        appRoot.innerHTML = `
+          <div class="app-shell">
+            <main class="workspace">
+              <section class="message-panel message-error">
+                <h2>Unable to load contact manager</h2>
+                <p>The application encountered an error while loading. Please try logging out and logging in again.</p>
+                <button id="error-logout" class="button button-secondary" type="button">Log out</button>
+              </section>
+            </main>
+          </div>`;
+        const logoutButton = appRoot.querySelector<HTMLButtonElement>("#error-logout");
+        if (logoutButton) {
+          logoutButton.addEventListener("click", () => authState.logout());
+        }
+        currentView = "contact"; // Mark as mounted to prevent duplicate attempts
+        // Log the actual error for debugging (not exposed to user)
+        console.error("Contact manager mount failed:", error);
+      }
     }
-  } else if (appRoot.childElementCount > 0) {
-    uninstallUnsavedWarning?.();
-    uninstallUnsavedWarning = null;
-    appRoot.innerHTML = "";
+  } else {
+    // Only cleanup contact manager if it was mounted
+    if (currentView === "contact") {
+      cleanupContactView();
+      currentView = "login";
+    }
   }
 });
+
+function cleanupContactView(): void {
+  uninstallUnsavedWarning?.();
+  uninstallUnsavedWarning = null;
+  appRoot.innerHTML = "";
+}
 
 authState.load();
