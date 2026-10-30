@@ -58,6 +58,10 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .wordmark { color: var(--ink); font-size: 19px; font-weight: 800; text-decoration: none; }
 .wordmark span { color: var(--green); }
 .privacy-link, .site-footer a { color: var(--green-dark); font-size: 14px; font-weight: 700; text-underline-offset: 4px; }
+.topbar-actions { display: flex; align-items: center; gap: 14px; }
+.topbar-actions .button-quiet { min-height: 36px; padding: 7px 12px; }
+.auth-workspace { max-width: 480px; }
+.auth-disclosure { margin: 0 0 26px; padding: 14px 16px; border: 1px solid #c9dfd2; border-left: 4px solid var(--green); background: rgba(255,255,255,.72); color: #43514a; font-size: 13px; }
 
 .workspace { width: min(100% - 36px, 880px); margin: 0 auto; padding: 48px 0 56px; flex: 1; }
 

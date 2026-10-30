@@ -23,6 +23,39 @@ If a save fails, the changed list remains visible and is marked unsaved. Choose
 list. Leaving or refreshing while changes are unsaved triggers the browser's
 before-unload warning; continuing can lose those changes.
 
+## Signing In
+
+Before any contact can be created, viewed, edited, deleted, or searched, the
+app requires a local sign-in gate. On first use in a browser profile with no
+saved sign-in, the app shows a setup screen: choose a username and a passcode,
+and choose **Create sign-in**. The app stores only a salted hash of the
+passcode (never the plaintext passcode) in a dedicated `localStorage` key,
+separate from the contacts key. The passcode itself is never written to
+`localStorage`, logs, or anywhere in the DOM outside its own input field.
+
+On later visits in the same browser profile, the app shows a sign-in screen
+instead of the setup screen. Enter the same username and passcode and choose
+**Sign in**. An incorrect username or passcode always shows the same generic
+message, "Invalid username or passcode.", without indicating which field was
+wrong.
+
+A successful sign-in sets an authenticated flag in `sessionStorage` for the
+current tab session only; it is not written to `localStorage`. Reloading the
+page in the same tab session stays signed in. Closing and reopening the
+browser, or opening the site in a new tab, starts a new session and requires
+signing in again, even though the saved username/passcode and all contacts
+remain in `localStorage`. Choose **Log out** to end the current session; this
+clears only the session flag and does not delete the saved sign-in or any
+contact.
+
+This sign-in is a local, client-side convenience gate for this browser
+profile only. It is not an encrypted or server-verified account system, and it
+does not protect against anyone with access to this browser's storage or
+developer tools. There is no account-recovery-by-identity flow: the only way
+to reset a forgotten username or passcode is to clear this browser's storage,
+which also deletes every saved contact. The setup/sign-in screen states this
+in plain language before any credential is created.
+
 ## Data And Recovery
 
 Contacts are stored only in `localStorage` for the current browser profile. They
@@ -75,13 +108,18 @@ npm.cmd run test:browser
 
 The browser suite covers create/edit/delete, search, persistence after refresh,
 validation, recovery, failed-save handling, and an axe audit of the empty, form,
-delete-dialog, and recovery-dialog states. Responsive layout is checked at 320
+delete-dialog, and recovery-dialog states. It also covers the local sign-in
+gate: first-use setup, login success and the one generic error for a wrong
+username or passcode, logout, that contact data and controls are unreachable
+before signing in, that a signed-in session persists across a reload in the
+same tab, and that a fresh tab/browser session requires signing in again even
+with the same saved credential. Responsive layout is checked at 320
 and 1280 CSS pixels; the 320px check is viewport-layout evidence only and does
-not certify mobile browsers. The keyboard-only browser walkthrough exercises
-contact creation, search, edit, and deletion using keyboard events without
-pointer actions. Automated checks do not establish WCAG conformance. No WCAG
-2.2 AA conformance claim is made; manual screen-reader assessment is still
-required.
+not certify mobile browsers. The keyboard-only browser walkthroughs exercise
+contact creation, search, edit, and deletion, and separately sign-in setup and
+login, using keyboard events without pointer actions. Automated checks do not
+establish WCAG conformance. No WCAG 2.2 AA conformance claim is made; manual
+screen-reader assessment is still required.
 
 ## Static Hosting And Release Verification
 
@@ -198,3 +236,41 @@ checked in Chrome 155. Full human keyboard assessment remains pending;
 screen-reader testing was not performed.
 Automated axe and scripted keyboard results do not establish WCAG conformance;
 no WCAG 2.2 AA conformance claim is made.
+
+## T-08 Verification Record (FR-12 Local Login Gate)
+
+This record covers the FR-12 local login gate (T-08) added after the
+2026-10-21 record above. It reruns the full local automated suite, including
+the new sign-in tests, to confirm no regression to T-01 through T-07. It does
+not re-verify the Cloudflare Pages deployed-origin evidence above, which is
+unchanged and remains dated 2026-10-21; this task made no deployment.
+
+**Run date:** 2026-10-30  
+**Environment:** Node.js 26.10.0, npm 11.19.1, Windows 11 Enterprise build
+26200, Chrome 156.0.8078.48, and Edge 156.0.4314.50.
+
+| Command | Result |
+|---|---|
+| `npm.cmd test` | Passed: 48 tests across 8 files (31 pre-existing T-01–T-07 tests, 6 new `src/auth/crypto` unit tests, and 11 new `src/auth/auth-state` integration tests covering first-use setup, login success/failure with one generic error, logout, tampered-hash rejection, and pre-login contact-access gating). |
+| `$env:PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = 'C:\Program Files\Google\Chrome\Application\chrome.exe'; npm.cmd run test:browser` | Passed: 21 browser tests in Chrome 156.0.8078.48 (14 pre-existing contact tests, 1 pre-existing axe audit test, and 7 new sign-in tests covering setup, login, the generic wrong-credential error, logout, keyboard-only operation, same-tab-session persistence across reload, and re-prompting in a fresh tab session). |
+| `$env:PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'; npm.cmd run test:browser` | Passed: 21 browser tests in Edge 156.0.4314.50, same coverage as above. |
+| `npm.cmd run typecheck` | Passed: `tsc --noEmit`. |
+| `npm.cmd run build` | Passed: typecheck and Vite production build; static output generated in `dist/`. |
+| `npm.cmd audit` | Passed: 0 vulnerabilities found. |
+
+**Sign-in keyboard-only walkthrough:** The Playwright test "completes setup
+and login using keyboard input only" passed using Tab, Enter, and text entry
+keys without pointer actions, covering first-use setup, logout, and a
+subsequent login. This is scripted keyboard-path evidence, not a human
+assessment of keyboard usability.
+
+**Accessible error announcement:** The Playwright test "shows one generic
+error for a wrong username or passcode without revealing which field was
+wrong" asserts the sign-in error is exposed with `role="alert"` and the exact
+generic text "Invalid username or passcode." for both a wrong username and a
+wrong passcode.
+
+G-01's separate mandatory human keyboard and screen-reader assessment now
+also covers the sign-in/setup/logout UI, consistent with `impl-plan.md`.
+G-01 remains `PENDING`; no WCAG 2.2 AA conformance claim is made for the
+sign-in UI or the application as a whole.

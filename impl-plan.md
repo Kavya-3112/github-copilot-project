@@ -1,20 +1,21 @@
 # Contact Management System Implementation Plan
 
-**Revision:** 3  
-**Status:** Approved by the user on 2026-10-21  
-**Basis:** Approved `requirements.md` revision 2, approved `architecture.md` revision 4, and resolved/approved `design-review.md` revision 4. `.github/sdlc-status.md` records all three approvals on 2026-10-21.  
-**Scope:** Reconciliation of implementation evidence and remaining work to CS-01, plus downstream verification gates. This plan does not implement code, approve itself, authorize deployment, or authorize remote actions.
+**Revision:** 4  
+**Status:** Approved by the user on 2026-10-21 (revision 3); revision 4 approved by the user on 2026-10-30.  
+**Basis:** Approved `requirements.md` revision 3, approved `architecture.md` revision 5, and resolved/approved `design-review.md` revision 4 (unchanged by revision 4 of this plan; FR-12's design review is tracked as a limitation until a design-review pass covers it — see Unresolved Dependencies). `.github/sdlc-status.md` records the 2026-10-21 approvals.  
+**Scope:** Revision 4 adds task T-08 (FR-12 local login gate) under requirements revision 3 / architecture revision 5, approved by the user on 2026-10-30. It otherwise preserves revision 3's reconciliation of implementation evidence and remaining work to CS-01, plus downstream verification gates. This plan does not implement code, approve itself, authorize deployment, or authorize remote actions.
 
 ## Revision History
 
 - **Revision 1:** Approved by the user on 2026-10-21 under the prior requirements and architecture scope.
 - **Revision 2:** Approved by the user on 2026-10-21 for requirements revision 1 and architecture revision 3. It separated integrated automated verification from mandatory manual accessibility gate G-01. That approval is preserved for its prior scope; revision 2 is superseded for the newly approved requirements revision 2 / architecture revision 4 scope.
 - **Revision 3:** Approved by the user on 2026-10-21 to reconcile task evidence and next work to CS-01 in requirements revision 2 and the resolved design review revision 4.
+- **Revision 4:** Approved by the user on 2026-10-30 to add T-08, implementing the FR-12 local login gate under requirements revision 3 and architecture revision 5. It does not reopen or change T-01 through T-07 or G-01.
 
 ## Execution Rules
 
 - Revision 3 records the evidenced status of prior tasks; do not treat completed historical work as authorization for new work. Any new implementation or verification work must follow the applicable approval and authorization gates.
-- Use TypeScript, Vite, native HTML/CSS/TypeScript, and browser `localStorage`; do not add a backend, account system, analytics, synchronization, or unapproved product scope.
+- Use TypeScript, Vite, native HTML/CSS/TypeScript, and browser `localStorage`; do not add a backend, analytics, synchronization, or unapproved product scope. T-08's local login gate (FR-12) is approved scope as of revision 4; it remains local-only and must not become a server or multi-user account system.
 - CS-01 covers current stable Chrome and Edge on Windows 11 desktop only. The recorded 2026-10-21 builds are Chrome 155.0.8059.85 and Edge 155.0.4283.62 on Windows 11 Enterprise build 26200. Do not claim prior majors, Firefox, Safari, mobile-browser support/compatibility, or verification of future stable releases.
 - FR-11's 320 CSS-pixel assertion is responsive-layout evidence only; it is not mobile-browser testing or certification.
 - Keep contact values out of URLs, logs, telemetry, and diagnostics; render user-provided values as text.
@@ -129,6 +130,19 @@ Revision 3 reconciliation: T-01 through T-06 remain complete only to the extent 
 - **Review finding:** CR-04 resolved; the release matrix and instructions now restrict supported/tested browser claims to current stable Chrome and Edge on Windows 11 desktop, excluding previous majors, Firefox, Safari, and mobile browsers.
 - **Remaining scope boundary:** G-01 human keyboard and screen-reader assessment remains pending; no WCAG 2.2 AA claim is made.
 
+### T-08: Implement the local login gate
+
+- **ID:** T-08.
+- **Scope:** Implement first-use credential setup, login, logout, and session-scoped gating of all contact functionality, per architecture revision 5 Section 2.1.
+- **Related requirement IDs:** FR-12; NFR-01 through NFR-03 apply to the login/setup UI.
+- **Affected files/components:** New `src/auth/` module (credential storage schema, salted-hash setup/verify, session-flag state); new `src/ui/` login/setup view; `src/main.ts` wiring to gate the existing contact UI behind the login gate; `tests/unit/`, `tests/integration/`, `tests/browser/` coverage for the new module.
+- **Dependencies/blockers:** T-01 through T-07 (existing toolchain, state, UI, and security conventions); none blocking.
+- **Implementation approach:** First-use setup screen captures a username and passcode and stores `{ username, salt, passwordHash, hashAlgorithm }` in a dedicated `localStorage` key via `SubtleCrypto` digest (never plaintext). Login compares a freshly computed hash against the stored one. On success, set an in-memory/`sessionStorage`-scoped authenticated flag (not persisted to `localStorage`) and render the existing contact UI; on failure, show one generic accessible error. Logout clears only the session flag. Keep the passcode out of the DOM outside its input, out of logs/telemetry, and out of URLs. Show the plain-language local-only disclosure from architecture revision 5 Section 7 on the login/setup screen.
+- **Acceptance criteria:** No contact data is creatable, viewable, editable, deletable, or searchable before successful login; the stored credential is a salted hash, never plaintext; a wrong username or passcode produces one generic error; logout ends the session without deleting the credential or contacts; reopening the browser after closing it requires login again; the login/setup UI is keyboard-operable with accessible labels and announced errors; the local-only disclosure is shown.
+- **Required tests:** Unit tests for salted-hash setup/verify (correct, incorrect, and tampered-hash cases); integration tests for first-use setup, login success/failure, logout, and gating of contact operations pre-login; browser tests for keyboard operation, accessible error announcement, session persistence across reload within the same tab session, re-prompt after a fresh browser session, and that contact UI is unreachable without authenticating. Run the full existing suite (`npm test`, `npm run test:browser`, `npm run typecheck`, `npm run build`) to confirm no regression to T-01 through T-07.
+- **Status:** `COMPLETE`
+- **Evidence:** Implemented `src/auth/types.ts`, `src/auth/crypto.ts` (Web Crypto `SubtleCrypto` SHA-256 digest over passcode+per-setup random salt), `src/auth/credential-repository.ts` (dedicated `contact-management:auth:v1` `localStorage` key, separate from the contacts key), `src/auth/session.ts` and `src/auth/auth-state.ts` (session-scoped `sessionStorage` authenticated flag, never written to `localStorage`), and `src/ui/login-view.ts` (setup/login UI with the local-only disclosure). `src/main.ts` now mounts only the login/setup view until `isContactAccessAuthorized` reports authenticated; the existing contact UI (`src/ui/contact-manager.ts`, now with an added Log out action) is not mounted into the DOM at all before that, and is unmounted again on logout. `npm.cmd test` passed 48 tests across 8 files on 2026-10-30 (31 pre-existing T-01–T-07 tests, 6 new `tests/unit/auth-crypto.test.ts` tests covering salted-hash setup/verify correct/incorrect/tampered cases, and 11 new `tests/integration/auth-state.test.ts` tests covering first-use setup, login success/failure with one generic "Invalid username or passcode." message, logout, tampered-hash rejection, and pre-login contact-access gating). `npm.cmd run test:browser` passed 21 tests each in Chrome 156.0.8078.48 and Edge 156.0.4314.50 on Windows 11 Enterprise build 26200 (14 pre-existing contact tests plus 1 pre-existing axe audit test, and 7 new `tests/browser/auth.spec.ts` tests covering first-use setup, login, the generic wrong-username/wrong-passcode error, logout without deleting the credential or contacts, keyboard-only setup/login, session persistence across a same-tab reload, and re-prompting in a fresh tab session with the same stored credential). `npm.cmd run typecheck` and `npm.cmd run build` passed; `npm.cmd audit` reported 0 vulnerabilities. See `README.md`'s "T-08 Verification Record" section for the full command/result table. No account-recovery-by-identity flow was added, consistent with FR-12's explicit exclusion. G-01 remains `PENDING` and now also covers this UI; no WCAG 2.2 AA conformance claim is made for it.
+
 ## Downstream Verification/Release Gate
 
 ### G-01: Human keyboard and screen-reader assessment
@@ -151,3 +165,5 @@ Revision 3 reconciliation: T-01 through T-06 remain complete only to the extent 
 - The 320 CSS-pixel assertion is responsive layout evidence under FR-11 only, not mobile-browser testing or certification.
 - Name whitespace/casing behavior and deterministic ordering for contacts created at the same time remain unspecified by the approved requirements and architecture. Do not present a chosen implementation detail as an approved product rule; document any necessary deterministic behavior and seek clarification if it changes user-visible acceptance behavior.
 - Manual screen-reader verification depends on access to a suitable browser/screen-reader setup; completion must be evidenced before claiming NFR-03 conformance.
+- `design-review.md` revision 4 predates FR-12 and does not record a design review pass over the T-08 login gate; T-08's evidence stands on its own code review and automated/manual testing, and this gap should be reconciled in a future design-review revision if the project continues that practice.
+- G-01's mandatory human keyboard and screen-reader assessment now also covers the T-08 login/setup/logout UI, since NFR-01 through NFR-03 apply to it; G-01 remains `PENDING` regardless of T-08's own evidence.

@@ -8,12 +8,16 @@ export function mountContactManager(
   root: HTMLElement,
   state: ContactState,
   repository: ContactRepository,
+  onLogout: () => void,
 ): void {
   root.innerHTML = `
     <div class="app-shell">
       <header class="topbar">
         <a class="wordmark" href="#top">contact<span>book</span></a>
-        <a class="privacy-link" href="#privacy-notice">Privacy notice</a>
+        <div class="topbar-actions">
+          <a class="privacy-link" href="#privacy-notice">Privacy notice</a>
+          <button id="logout-button" class="button button-quiet" type="button">Log out</button>
+        </div>
       </header>
       <main id="top" class="workspace">
         <section class="page-heading" aria-labelledby="page-title">
@@ -318,6 +322,7 @@ export function mountContactManager(
   });
 
   query<HTMLButtonElement>("#add-contact").addEventListener("click", () => state.openCreate());
+  query<HTMLButtonElement>("#logout-button").addEventListener("click", () => onLogout());
   query<HTMLButtonElement>("#retry-load").addEventListener("click", () => void state.load());
   searchInput.addEventListener("input", () => state.setQuery(searchInput.value));
 
