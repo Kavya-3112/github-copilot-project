@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateSalt, hashPasscode } from "../../src/auth/crypto";
+import { generateSalt, hashPasscode, isCryptoAvailable } from "../../src/auth/crypto";
 
 describe("auth crypto", () => {
   it("produces the same hash for the same passcode and salt", async () => {
@@ -49,5 +49,36 @@ describe("auth crypto", () => {
     expect(salt).toMatch(/^[0-9a-f]{32}$/);
     const longerSalt = generateSalt(32);
     expect(longerSalt).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("checks crypto availability and returns true when available", () => {
+    expect(isCryptoAvailable()).toBe(true);
+  });
+
+  it("throws an error when attempting to generate salt without crypto", () => {
+    const originalCrypto = globalThis.crypto;
+    const originalGetRandomValues = globalThis.crypto?.getRandomValues;
+    try {
+      delete (globalThis as any).crypto;
+      expect(isCryptoAvailable()).toBe(false);
+      expect(() => generateSalt()).toThrow("Cryptographic functionality is unavailable");
+    } finally {
+      if (originalCrypto) {
+        globalThis.crypto = originalCrypto;
+      }
+    }
+  });
+
+  it("throws an error when attempting to hash passcode without crypto", async () => {
+    const originalCrypto = globalThis.crypto;
+    try {
+      delete (globalThis as any).crypto;
+      expect(isCryptoAvailable()).toBe(false);
+      await expect(hashPasscode("test-passcode", "test-salt")).rejects.toThrow("Cryptographic functionality is unavailable");
+    } finally {
+      if (originalCrypto) {
+        globalThis.crypto = originalCrypto;
+      }
+    }
   });
 });

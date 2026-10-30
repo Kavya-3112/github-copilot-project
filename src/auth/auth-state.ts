@@ -88,11 +88,11 @@ export class AuthState {
     }
 
     const errors: CredentialFieldErrors = {};
-    if (typeof username !== "string" || username.length === 0) errors.username = "Enter a username.";
-    if (typeof passcode !== "string" || passcode.length === 0) errors.passcode = "Enter a passcode.";
+    if (typeof username !== "string" || username.trim().length === 0) errors.username = "Enter a username.";
+    if (typeof passcode !== "string" || passcode.trim().length === 0) errors.passcode = "Enter a passcode.";
     if (Object.keys(errors).length > 0) return { kind: "invalid", errors };
 
-    const trimmedUsername = username as string;
+    const trimmedUsername = (username as string).trim();
     const enteredPasscode = passcode as string;
     const salt = generateSalt();
     const passwordHash = await hashPasscode(enteredPasscode, salt);
@@ -123,7 +123,7 @@ export class AuthState {
       return { kind: "failed", reason: "Sign-in is not available." };
     }
 
-    const candidateUsername = typeof username === "string" ? username : "";
+    const candidateUsername = typeof username === "string" ? username.trim() : "";
     const candidatePasscode = typeof passcode === "string" ? passcode : "";
     const candidateHash = await hashPasscode(candidatePasscode, this.credential.salt);
     const matches = candidateUsername === this.credential.username

@@ -1,4 +1,4 @@
-import { AuthState } from "../auth/auth-state";
+import { AuthState, type AuthSnapshot } from "../auth/auth-state";
 import type { CredentialFieldErrors } from "../auth/types";
 
 const localOnlyDisclosure = "This sign-in is a local convenience gate for this browser profile only. "
@@ -36,7 +36,7 @@ export function mountLoginGate(root: HTMLElement, authState: AuthState): void {
         <form id="auth-form" novalidate>
           <div class="field-group">
             <label for="auth-username">Username</label>
-            <input id="auth-username" name="username" type="text" autocomplete="username" required aria-describedby="auth-username-error" />
+            <input id="auth-username" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required aria-describedby="auth-username-error" />
             <p id="auth-username-error" class="field-error" hidden></p>
           </div>
           <div class="field-group">
@@ -71,7 +71,7 @@ export function mountLoginGate(root: HTMLElement, authState: AuthState): void {
     error.hidden = !message;
   };
 
-  const render = (snapshot: ReturnType<AuthState["snapshot"] extends never ? never : () => AuthState["snapshot"]>): void => {
+  const render = (snapshot: AuthSnapshot): void => {
     const loading = snapshot.status === "loading";
     const unavailable = snapshot.status === "unavailable";
     const needsSetup = snapshot.status === "needs-setup";

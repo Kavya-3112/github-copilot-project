@@ -187,4 +187,68 @@ describe("auth state", () => {
     await state.login("ada", "correct-passcode");
     expect(isContactAccessAuthorized(state.snapshot)).toBe(true);
   });
+
+  it("rejects setup with whitespace-only username", async () => {
+    const state = createState();
+    state.load();
+
+    const result = await state.setup("   ", "valid-passcode");
+    expect(result).toMatchObject({
+      kind: "invalid",
+      errors: { username: expect.any(String) },
+    });
+    expect(localValues.getItem(AUTH_STORAGE_KEY)).toBeNull();
+    expect(state.snapshot.status).toBe("needs-setup");
+  });
+
+  it("rejects setup with whitespace-only passcode", async () => {
+    const state = createState();
+    state.load();
+
+    const result = await state.setup("valid-username", "   ");
+    expect(result).toMatchObject({
+      kind: "invalid",
+      errors: { passcode: expect.any(String) },
+    });
+    expect(localValues.getItem(AUTH_STORAGE_KEY)).toBeNull();
+    expect(state.snapshot.status).toBe("needs-setup");
+  });
+
+  it("trims leading and trailing whitespace from username during setup", async () => {
+    const state = createState();
+    state.load();
+
+    const result = await state.setup("  ada  ", "correct-passcode");
+    expect(result).toEqual({ kind: "authenticated" });
+    expect(state.snapshot).toEqual({ status: "authenticated", username: "ada", error: null });
+
+    const storedRaw = localValues.getItem(AUTH_STORAGE_KEY);
+    const stored = JSON.parse(storedRaw!);
+    expect(stored.username).toBe("ada");
+  });
+
+  it("trims username during login to match stored trimmed username", async () => {
+    const setupState = createState();
+    setupState.load();
+    await setupState.setup("ada", "correct-passcode");
+
+    const loginState = new AuthState(new CredentialRepository(localValues), new MemoryStorage());
+    loginState.load();
+
+    const result = await loginState.login("  ada  ", "correct-passcode");
+    expect(result).toEqual({ kind: "authenticated" });
+    expect(loginState.snapshot).toEqual({ status: "authenticated", username: "ada", error: null });
+  });
+
+  it("rejects login with whitespace-only username even if credential exists", async () => {
+    const setupState = createState();
+    setupState.load();
+    await setupState.setup("ada", "correct-passcode");
+
+    const loginState = new AuthState(new CredentialRepository(localValues), new MemoryStorage());
+    loginState.load();
+
+    const result = await loginState.login("   ", "correct-passcode");
+    expect(result).toEqual({ kind: "failed", reason: "Invalid username or passcode." });
+  });
 });
