@@ -1,8 +1,8 @@
 # Contact Management System Requirements Proposal
 
-**Revision:** 2
-**Status:** Approved by the user on 2026-10-21.
-**Source:** `.github/input/userstory.md` (US-01 through US-08).
+**Revision:** 3
+**Status:** Approved by the user on 2026-10-21 (revision 2); revision 3 approved by the user on 2026-10-30.
+**Source:** `.github/input/userstory.md` (US-01 through US-08); revision 3's login requirement is a separate, explicit user scope decision dated 2026-10-30, not traced to US-01 through US-08.
 
 ## 1. Purpose and Users
 
@@ -17,10 +17,11 @@ The system enables a user to keep, find, and manage contact names and phone numb
 - Permit distinct contacts to share a phone number.
 - Persist contact data in browser local storage and handle storage/read failures as specified below.
 - Provide keyboard-operable, accessible controls and responsive presentation.
+- (Revision 3, approved by the user on 2026-10-30, not traced to US-01 through US-08) Require a local, client-side login gate — a single username/passcode set up on first use in that browser — before any contact data is created, viewed, edited, deleted, or searched. See FR-12.
 
 ### Out of scope
 
-No supplied story requires accounts, server-side storage, cross-device synchronization, importing/exporting contacts, contact groups, or duplicate detection/removal. These are not requirements of this proposal.
+No supplied story requires server-side accounts, server-side storage, cross-device synchronization, importing/exporting contacts, contact groups, or duplicate detection/removal. These are not requirements of this proposal. Revision 3's login gate (FR-12) is explicitly a local, single-profile, client-only convenience gate; it does not add a server, a multi-user account system, password recovery via identity verification, or any new synchronization, and it carries none of the security guarantees a server-verified account system would.
 
 ## 3. Stated Requirements
 
@@ -41,6 +42,7 @@ Each requirement has a stable ID and a source trace. The acceptance criteria are
 | FR-09 | Before using stored contact data, the system shall validate it. When stored data is unreadable, the system shall attempt recovery without immediately overwriting the original data. Replacing unreadable data shall require explicit user confirmation. | US-07 |
 | FR-10 | If saving changes fails, the system shall retain the current visible changes in the interface, clearly indicate that they are not saved, and shall not indicate that the save succeeded. | US-07 |
 | FR-11 | The system shall support responsive presentation at viewport widths down to 320 CSS pixels without unintended horizontal scrolling, and clearly present contact information in desktop and mobile viewport layouts. Testing at 320 CSS pixels is viewport-responsive layout testing; it does not certify compatibility with mobile browsers. | US-02, US-08 |
+| FR-12 | On first use in a browser profile with no stored credential, the system shall let the user set up a single local username and passcode, store only a salted hash of the passcode (never plaintext) in local storage, and require successful login with that credential before any contact is created, viewed, edited, deleted, or searched. A failed attempt shall show one generic "invalid username or passcode" message without indicating which field was wrong. The system shall provide a logout action that ends the current session's authenticated state without deleting stored contacts or the stored credential. The system shall not claim this gate is a secure or server-verified account system; it is a local convenience gate only, and the only way to reset a forgotten credential is to clear this browser's local storage, which also deletes stored contacts. | User's explicit scope decision, 2026-10-30 (revision 3); not traced to US-01 through US-08. |
 
 ### Accessibility and quality requirements
 
@@ -49,6 +51,8 @@ Each requirement has a stable ID and a source trace. The acceptance criteria are
 | NFR-01 | All interactive features shall be operable using a keyboard. Focus shall be visible and follow a logical order. | US-08 |
 | NFR-02 | Form fields shall have accessible labels; validation messages, dynamic updates, and errors shall be communicated appropriately to assistive technologies. | US-08 |
 | NFR-03 | Text and interactive controls shall meet applicable WCAG 2.2 AA requirements. Conformance shall be reported only after appropriate automated accessibility checks and manual keyboard and screen-reader testing have been completed. | US-08 |
+
+NFR-01 through NFR-03 apply to the FR-12 login/setup/logout controls to the same extent as the rest of the application; no separate exemption is created for them.
 
 ## 4. Assumptions and Constraints
 
@@ -88,7 +92,9 @@ Browser compatibility verification shall cover the current stable versions of Ch
 
 ## 6. Security and Privacy Considerations
 
-The stories place contact data in browser local storage. This makes browser storage retention and access relevant to data availability and privacy; the stories do not specify encryption, authentication, access control, backup, retention, or secure deletion. This proposal therefore makes no claims about those protections and does not add them as requirements. The system must not imply that locally stored contacts are synchronized or backed up, since no such capability is stated.
+The stories place contact data in browser local storage. This makes browser storage retention and access relevant to data availability and privacy; the stories do not specify encryption, access control, backup, retention, or secure deletion, and this proposal makes no claims about those protections. The system must not imply that locally stored contacts are synchronized or backed up, since no such capability is stated.
+
+Revision 3 adds a local login gate (FR-12) at the user's explicit request. Because there is no server to verify identity, this gate is a client-side convenience control, not a security boundary: anyone with access to the same browser profile's developer tools or storage can read the stored (hashed) credential and the contact data it gates. The system must not claim encryption, server-side access control, secure deletion, or regulatory compliance for this login gate.
 
 ## 7. Unspecified Details and Limitations
 
@@ -100,3 +106,4 @@ The requirements are based on the supplied user-story document and the separatel
 
 - **Revision 1 (2026-10-21):** Approved by the user; baseline for this revision. Its requirements and supporting sections are retained, with FR-11 clarified in revision 2.
 - **Revision 2 (2026-10-21):** Approved by the user; clarifies FR-11 as a viewport/layout requirement and adds CS-01 from the user's explicit browser compatibility scope decision.
+- **Revision 3 (2026-10-30):** Approved by the user; adds FR-12, a local client-side login/logout gate, as an explicit new scope decision not traced to US-01 through US-08. This revision does not add a server, a multi-user account system, or any new synchronization, and does not change FR-01 through FR-11, NFR-01 through NFR-03, or CS-01.
